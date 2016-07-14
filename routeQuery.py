@@ -80,6 +80,11 @@ class Route:
     Y = [tl.location.lat for tl in self.timedLocations]
     return X,Y
 
+  def toLonLatTimeArrays(self):
+    X,Y = self.toLonLatArrays()
+    T = [tl.timestamp for tl in self.timedLocations]
+    return X,Y,T
+
   def toString(self):
     return ",".join([tl.toString() for tl in self.timedLocations])
 

@@ -3,13 +3,14 @@ import matplotlib.pyplot as plt
 import pyLeaflet
 
 def renderRoute(route,**kwargs):
-  x,y = route.toLonLatArrays()
+  x,y,t = route.toLonLatTimeArrays()
   fig, ax1 = plt.subplots(figsize=(15, 18),nrows=1,ncols=1)
 
   kwargs['marker'] = 'o' if not kwargs.has_key('marker') else kwargs['marker']
   kwargs['s'] = [50]*len(x) if not kwargs.has_key('s') else kwargs['s']
   kwargs['cmap'] = \
       plt.get_cmap('winter') if not kwargs.has_key('cmap') else kwargs['cmap']
+  kwargs['c'] = t if not kwargs.has_key('c') else kwargs['c']
   kwargs['linewidths'] = \
       0 if not kwargs.has_key('linewidths') else kwargs['linewidths']
 
