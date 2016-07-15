@@ -26,6 +26,13 @@ continue_straight=%s&alternatives=%s"""%(
     #   print leg
     return route
 
+  def getUniformlySampledRoute(self,depLocation,arrLocation,sampling_period_in_sec):
+    steps = self.getSteps(depLocation,arrLocation)
+    route = UniformlySampledRoute(steps,sampling_period_in_sec)
+    # for leg in json['routes'][0]['legs'][0:1]:
+    #   print leg
+    return route
+
   def getSteps(self,depLocation,arrLocation):
     json = self.getJSON(depLocation,arrLocation)
     steps = json['routes'][0]['legs'][0]['steps']
@@ -47,6 +54,10 @@ continue_straight=%s&alternatives=%s"""%(
 
 class Route:
 
+  ###
+  # !!! Highly dependent on the datastructure retuned by OSRM server
+  #
+  ###
   def __init__(self, steps=[]):
     self.timedLocations = []
 
@@ -65,28 +76,91 @@ class Route:
       timedLocs = TimedLocation.makeTimedLocationFromCoordinatesAndTotalDuration(
                     s['geometry']['coordinates'],
                     s['duration'],
-                    s['distance'],
                     prevTimestamp
                   )
       self.timedLocations.extend(timedLocs)
       prevTimestamp += s['duration']
 
-  def addPoint(self,lat,lon,timestamp):
+    # if sampling_period_in_sec is not None:
+    #   mroute = self.makeUniformlySampledRoute(sampling_period_in_sec)
+    #   self.timedLocations = mroute.timedLocations
+
+  def appendPoint(self,lat,lon,timestamp):
     self.timedLocations.append(TimedLocation(lat,lon,timestamp))
     return
+
+  def makeUniformlySampledRoute(self,sampling_period_in_sec=1.0):
+    mroute = Route()
+    if len(self.timedLocations)==0:
+      return mroute
+
+    lat0 = self.timedLocations[0].location.lat
+    lon0 = self.timedLocations[0].location.lon
+    totalDurationInSeconds = self.timedLocations[-1].timestamp
+    numberOfPoints = int(totalDurationInSeconds/sampling_period_in_sec)+1
+
+    mroute.timedLocations = \
+      [TimedLocation(lat0,lon0,sampling_period_in_sec*i) for i in range(numberOfPoints+1)]
+
+    self_tl_idx = 1
+    for tl in mroute.timedLocations[1:]:
+      while (self_tl_idx<len(self.timedLocations) and 
+              self.timedLocations[self_tl_idx].timestamp<tl.timestamp):
+        self_tl_idx+=1
+      if not (self_tl_idx<len(self.timedLocations)):
+        break
+
+      tl1 = self.timedLocations[self_tl_idx-1]
+      tl2 = self.timedLocations[self_tl_idx]
+      try:
+        ratio = (tl.timestamp-tl1.timestamp)/(tl2.timestamp-tl1.timestamp)
+      except ZeroDivisionError as e:
+        print e
+        print tl1.toString()+"\t"+tl2.toString()
+
+
+      tl.location = Location.intermediatePoint(tl1.location,tl2.location,ratio)
+
+    mroute.timedLocations[-1].location = self.timedLocations[-1].location
+
+    return mroute
 
   def toLonLatArrays(self):
     X = [tl.location.lon for tl in self.timedLocations]
     Y = [tl.location.lat for tl in self.timedLocations]
     return X,Y
 
+  def toLatLonTimeArrays(self):
+    X,Y = self.toLonLatArrays()
+    return Y,X
+
   def toLonLatTimeArrays(self):
     X,Y = self.toLonLatArrays()
     T = [tl.timestamp for tl in self.timedLocations]
     return X,Y,T
 
+  def toLatLonTimeArrays(self):
+    X,Y = self.toLatLonArrays()
+    T = [tl.timestamp for tl in self.timedLocations]
+    return X,Y,T
+
   def toString(self):
     return ",".join([tl.toString() for tl in self.timedLocations])
+
+  def checkTimeValidity(self):
+    for tli in range(len(route.timedLocations)-1):
+      if (route.timedLocations[tli].timestamp>route.timedLocations[tli+1].timestamp):
+          print route.timedLocations[tli].toString()+"\t"+route.timedLocations[tli+1].toString()
+          return false
+    return True
+
+
+class UniformlySampledRoute(Route):
+
+  def __init__(self, steps=[],sampling_period_in_sec = 1.0):
+    Route.__init__(self,steps)
+    self.timedLocations = self.makeUniformlySampledRoute(sampling_period_in_sec).timedLocations
+    self.sampling_period_in_sec = sampling_period_in_sec
 
 
 class TimedLocation:
@@ -101,16 +175,22 @@ class TimedLocation:
 
   @staticmethod
   def makeTimedLocationFromCoordinatesAndTotalDuration(lonlats,totalDuration,
-      totalDistance,prevTimestamp=0.0):
+      prevTimestamp=0.0):
 
     timedLocs = [TimedLocation(ss[1], ss[0], prevTimestamp) for ss in lonlats]
     distances = [0.0]*len(lonlats)
+    # for each intermediary point on the segment, compute the timestamp associated 
+    # by doing a distance ratio. Assumes constant speed on segment.
     for i in range(1,len(lonlats)):
       distances[i] = Location.distanceInMeters(timedLocs[i-1].location,
                                                 timedLocs[i].location)
+
+    totalDistance = sum(distances)
+    for i in range(1,len(lonlats)):
       timedLocs[i].timestamp = totalDuration*distances[i]/totalDistance\
                                   +timedLocs[i-1].timestamp
-    return timedLocs
+
+    return timedLocs[1:]
       
 
 class Location:
@@ -140,3 +220,9 @@ class Location:
       location1.toLatLonTuple(),
       location2.toLatLonTuple()
     ).meters
+
+  @staticmethod
+  def intermediatePoint(location1,location2,ratio):
+    lat = location1.lat+ratio*(location2.lat-location1.lat)
+    lon = location1.lon+ratio*(location2.lon-location1.lon)
+    return Location(lat,lon)
