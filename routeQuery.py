@@ -19,16 +19,17 @@ continue_straight=%s&alternatives=%s"""%(
                         alternatives
                         )
 
-  def getRoute(self,depLocation,arrLocation):
+  def getRoute(self,depLocation,arrLocation,firstTimestamp=0.0):
     steps = self.getSteps(depLocation,arrLocation)
-    route = Route(steps)
+    route = Route(steps,firstTimestamp)
     # for leg in json['routes'][0]['legs'][0:1]:
     #   print leg
     return route
 
-  def getUniformlySampledRoute(self,depLocation,arrLocation,sampling_period_in_sec):
+  def getUniformlySampledRoute(self,depLocation,arrLocation,
+      firstTimestamp=0.0,sampling_period_in_sec=1.0):
     steps = self.getSteps(depLocation,arrLocation)
-    route = UniformlySampledRoute(steps,sampling_period_in_sec)
+    route = UniformlySampledRoute(steps,firstTimestamp,sampling_period_in_sec)
     # for leg in json['routes'][0]['legs'][0:1]:
     #   print leg
     return route
@@ -40,7 +41,12 @@ continue_straight=%s&alternatives=%s"""%(
 
   def getJSON(self,depLocation,arrLocation):
     query = self.buildQuery(depLocation,arrLocation)
-    json = requests.get(query).json()
+    try:
+      json = requests.get(query).json()
+    except ValueError:
+      print query
+      print "No JSON returned by server..."
+      json = {'routes':[{'legs':[{'steps':[]}]}]}
     return json
 
   def buildQuery(self,depLocation,arrLocation):
