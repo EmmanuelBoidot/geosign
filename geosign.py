@@ -29,15 +29,22 @@ for i in range(100):
 x,y,t = rroute.toLonLatTimeArrays()
 # print x
 
-# print Location.distanceInMeters(Location(40.536656, -74.489883),Location(40.536656, -74.484883))
+# print Location.distanceInMeters(loc1,loc2)
 
 
 muser = User()
-muser.addTrip(loc1,loc2,noiseSigma=.006)
+for i in range(30):
+  muser.addTrip(loc1,loc2,secondsSinceLastTrip=11*3600.0,noiseSigma=.004)
+  muser.addTrip(loc2,loc1,secondsSinceLastTrip=8*3600.0,noiseSigma=.004)
 
 print muser.errorStatistics()
 
 # ru.renderElement(rroute,alpha=.05)
-ru.renderElement(muser,alpha=.8)
+ru.renderElement(muser,
+  withUniform=False,
+  withActual=False,
+  withMeasured=False,
+  withFiltered=True,
+  alpha=.1)
 
 

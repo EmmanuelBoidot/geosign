@@ -13,9 +13,11 @@ class User:
     self.signature = {}
 
   def addTrip(self,dep_location,arr_location,sampling_period_in_sec=1.0,
-      noiseSigma=.005):
-    lastTimestamp = 0 if len(self.timedLocations_uniformlySampled)==0 else \
-      self.timedLocations_uniformlySampled[-1] 
+      secondsSinceLastTrip=0.0,noiseSigma=.005):
+    lastTimestamp = secondsSinceLastTrip
+    lastTimestamp += 0 if len(self.timedLocations_uniformlySampled)==0 else \
+      self.timedLocations_uniformlySampled[-1].timestamp
+
     # get exact route with time origin larger than last timestamp
     rq = RQ.RouteQuery()
     newRoute = rq.getUniformlySampledRoute(dep_location,
@@ -56,23 +58,31 @@ class User:
               for i in range(len(self.timedLocations_actual))]
     return np.histogram(errors,bins=numBins)
 
-  def render(self,ax,**kwargs):
+
+  def render(self,ax,withUniform=True,withActual=True,withMeasured=True,
+      withFiltered=True,**kwargs):
     if kwargs.has_key('c'):
       del kwargs['c']
 
-    kwargs['marker'] = 'o' if not kwargs.has_key('marker') else kwargs['marker']
+    kwargs['marker'] = '^' if not kwargs.has_key('marker') else kwargs['marker']
     kwargs['alpha'] = .05 if not kwargs.has_key('alpha') else kwargs['alpha']
-    kwargs['linewidths'] = \
-        0 if not kwargs.has_key('linewidths') else kwargs['linewidths']
     
-    x1,y1,t1 = self.toLonLatTimeArrays('uniformlySampled')
-    kwargs['s'] = [10]*len(x1)
-    ax.scatter(x1, y1, c='k',**kwargs)
+    if withUniform:
+      x1,y1,t1 = self.toLonLatTimeArrays('uniformlySampled')
+      kwargs['s'] = [10]*len(x1)
+      ax.scatter(x1, y1, c='k',**kwargs)
 
-    x2,y2,t2 = self.toLonLatTimeArrays('actual')
-    kwargs['s'] = [20]*len(x2)
-    ax.scatter(x2, y2, c='b',**kwargs)
+    if withActual:
+      x2,y2,t2 = self.toLonLatTimeArrays('actual')
+      kwargs['s'] = [20]*len(x2)
+      ax.scatter(x2, y2, c='b',**kwargs)
 
-    x3,y3,t3 = self.toLonLatTimeArrays('measured')
-    kwargs['s'] = [20]*len(x3)
-    ax.scatter(x3, y3, c='r',**kwargs)
+    if withMeasured:
+      x3,y3,t3 = self.toLonLatTimeArrays('measured')
+      kwargs['s'] = [20]*len(x3)
+      ax.scatter(x3, y3, c='r',**kwargs)
+
+    if withFiltered:
+      x4,y4,t4 = self.toLonLatTimeArrays('filtered')
+      kwargs['s'] = [20]*len(x4)
+      ax.scatter(x4, y4, c='g',**kwargs)
