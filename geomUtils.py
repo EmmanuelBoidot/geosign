@@ -1,4 +1,8 @@
 import random
+import geohash
+
+from route import *
+
 
 # A function to randomly select k items from stream[0..n-1].
 def selectKItems(numPoints, numPointsToSample):
@@ -17,3 +21,29 @@ def selectKItems(numPoints, numPointsToSample):
       reservoir[j] = i
 
   return sorted(reservoir)
+
+
+def geohash_exactDistance(h1,h2):
+    lat1,lon1 = geohash.decode(h1)
+    lat2,lon2 = geohash.decode(h2)
+    return Location(lat1, lon1).distanceInMetersTo(Location(lat2, lon2))
+
+
+def geohashNeighbors(h,dist=2):
+  if dist<=0:
+    return {h:0}
+  d = 1
+  n = geohash.neighbors(h)
+  s = dict(zip(n, [d for x in n]))
+  while (d<dist):
+    d+=1
+    ss = set([])
+    for hh  in s.keys():
+      n = geohash.neighbors(hh)
+      for k in n:
+        if k not in s:
+          ss.add(k)
+    for k in ss:
+      s[k] = d
+
+  return s

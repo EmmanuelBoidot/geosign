@@ -1,3 +1,7 @@
+import copy
+
+from heatmap import *
+
 class Route:
 
   ###
@@ -133,6 +137,93 @@ class Route:
       
     ax.scatter(x, y, **kwargs)
 
+  def toHeatmap(self,geohashlength=8,maxInterpolationTimeInterval=300,
+      maxInterpolationDistance=1000):
+    # 1. first, we should aggregate static data in a meaningful manner... maybe?
+    # the user signature is more reliable on more dynamic data
+
+    # 2. populate timeserie with intermediary geohashes
+    # then get heatmap
+    hmap = {'maxvalue':0,
+            'geohashlength':geohashlength,
+            'minlat': 180.,
+            'maxlat': -180.,
+            'minlon': 180.,
+            'maxlon': -180.
+            }
+    prevTimedLoc = self.timedLocations[0]
+    hmap[prevTimedLoc.toGeohash(geohashlength)] = 1
+    for k in range(1,len(self.timedLocations)):
+      # if the two points are too far away distance-wise or timewise, don't interpolate
+      if (self.timedLocations[k].timestamp-prevTimedLoc.timestamp)>maxInterpolationTimeInterval or Location.distanceInMeters(self.timedLocations[k],prevTimedLoc)>maxInterpolationDistance:
+        h = prevTimedLoc.toGeohash(geohashlength)
+        if h in hmap:
+          hmap[h]+=1
+          hmap['maxvalue'] = max(hmap['maxvalue'],hmap[h])
+        else:
+            hmap[h]=1
+      else:
+        N=10
+        i=0
+        while (i<N):
+          prevTimedLoc = self.timedLocations[k-1].intermediatePointTo(
+              self.timedLocations[k],(1.0*i)/N)
+
+          h = prevTimedLoc.toGeohash(geohashlength)
+          if h in hmap:
+              hmap[h]+=1
+              hmap['maxvalue'] = max(hmap['maxvalue'],hmap[h])
+          else:
+              hmap[h]=1
+          i+=1
+
+      hmap['minlon'] = min(hmap['minlon'], self.timedLocations[k].location.lon)
+      hmap['minlat'] = min(hmap['minlat'], self.timedLocations[k].location.lat)
+      hmap['maxlon'] = max(hmap['maxlon'], self.timedLocations[k].location.lon)
+      hmap['maxlat'] = max(hmap['maxlat'], self.timedLocations[k].location.lat)
+
+      prevTimedLoc = self.timedLocations[k]
+
+    # 3.
+    return Heatmap(hmap)
+
+  def filterFromHeatmap(self,hmap,maxDistance=5,heatThreshold=.01):
+    data = self.timedLocations
+    ndata = copy.deepcopy(data)
+    geohashlength = hmap.geohashlength
+    for l in range(len(data)):
+      h = data[l].toGeohash(geohashlength)
+      visited = set([h])
+      neighbors = set([h])
+      nonZeroNeighbors = [h] \
+        if (h in hmap.countPerGeohash and hmap.countPerGeohash[h]>heatThreshold) \
+        else []
+
+      d=0
+      while (len(nonZeroNeighbors)==0 and d<maxDistance):
+        nneighbors = set([])
+        for n in neighbors:
+          nneighbors.union([h for h in geohash.neighbors(n) if h not in visited])
+        neighbors = nneighbors
+        for n in neighbors:
+          if (n in hmap.countPerGeohash and hmap.countPerGeohash[n]>heatThreshold):
+            nonZeroNeighbors.append(n)
+        visited.union(neighbors)
+        d+=1
+
+      if len(nonZeroNeighbors)>0:
+        if len(nonZeroNeighbors)>1:
+          print h,nonZeroNeighbors
+        lat,lon=0.,0.
+        for n in nonZeroNeighbors:
+          dlat,dlon = geohash.decode(n)
+          lat += dlat
+          lon += dlon
+        ndata[l].location.lat= lat/len(nonZeroNeighbors)
+        ndata[l].location.lon= lon/len(nonZeroNeighbors)
+
+    return ndata
+
 
 class UniformlySampledRoute(Route):
 
@@ -145,7 +236,7 @@ class UniformlySampledRoute(Route):
 
 class TimedLocation:
 
-  def __init__(self,lat,lon,timestamp):
+  def __init__(self,lat=0.0,lon=0.0,timestamp=0.0):
     self.location = Location(lat,lon)
     self.timestamp = timestamp
 
@@ -154,6 +245,18 @@ class TimedLocation:
 
   def toString(self):
     return "[%f: %s]"%(self.timestamp,self.location.toString())
+
+  def toGeohash(self,geohashlength=7):
+    return self.location.toGeohash(geohashlength)
+
+  def intermediatePointTo(self,other,ratio):
+    tl = TimedLocation()
+    tl.location = self.location.intermediatePointTo(other.location,ratio)
+    self.timestamp = self.timestamp+ratio*(other.timestamp-self.timestamp)
+    return tl
+
+  def distanceInMetersTo(self,other):
+    return self.location.distanceInMetersTo(other.location)
 
   @staticmethod
   def makeTimedLocationFromCoordinatesAndTotalDuration(lonlats,totalDuration,
@@ -173,11 +276,20 @@ class TimedLocation:
                                   +timedLocs[i-1].timestamp
 
     return timedLocs[1:]
+
+  @staticmethod
+  def intermediatePoint(timedLoc1,timedLoc2,ratio):
+    return timedLoc1.intermediatePointTo(timedLoc2,ratio)
+
+  @staticmethod
+  def distanceInMeters(location1,location2):
+    return location1.distanceInMetersTo(location2)
       
 
 import geopy.distance
 import random
 import geomUtils
+import geohash
 
 class Location:
 
@@ -203,19 +315,44 @@ class Location:
   def toString(self):
     return "(%s)"%(self.toLatLonString())
 
+  def toGeohash(self,geohashlength=7):
+    return geohash.encode(self.lat,self.lon,geohashlength)
+
   def addNoise(self,noiseSigma=.005):
     self.lat += random.gauss(0.0,noiseSigma)
     self.lon += random.gauss(0.0,noiseSigma)
 
-  @staticmethod
-  def distanceInMeters(location1,location2):
+  def distanceInMetersTo(self,other):
     return geopy.distance.distance(
-      location1.toLatLonTuple(),
-      location2.toLatLonTuple()
-    ).meters
+        self.toLatLonTuple(),
+        other.toLatLonTuple()
+      ).meters
+
+  def intermediatePointTo(self,other,ratio):
+    lat = self.lat+ratio*(other.lat-self.lat)
+    lon = self.lon+ratio*(other.lon-self.lon)
+    return Location(lat,lon)
+
+  def __add__(self, other):
+    """Control adding two Books together or a Book and a number"""
+    return Location(self.lat+other.lat,self.lon+other.lon)
+
+  def __radd__(self, other):
+    """Control adding a Book and a number w/ the number first"""
+    return other + self
+
+  def __sub__(self, other):
+    """Control adding two Books together or a Book and a number"""
+    return Location(self.lat-other.lat,self.lon-other.lon)
+
+  def __rsub__(self, other):
+    """Control adding a Book and a number w/ the number first"""
+    return other + self
 
   @staticmethod
+  def distanceInMeters(location1,location2):
+    return location1.distanceInMetersTo(location2)
+    
+  @staticmethod
   def intermediatePoint(location1,location2,ratio):
-    lat = location1.lat+ratio*(location2.lat-location1.lat)
-    lon = location1.lon+ratio*(location2.lon-location1.lon)
-    return Location(lat,lon)
+    return location1.intermediatePointTo(location2,ratio)

@@ -6,17 +6,19 @@ import numpy as np
 class User:
 
   def __init__(self):
-    self.timedLocations_uniformlySampled = []
-    self.timedLocations_measured = []
-    self.timedLocations_actual = []
-    self.timedLocations_filtered = []
+    self.route_uniformlySampled = Route()
+    self.route_measured = Route()
+    self.route_actual = Route()
+    self.route_filtered = Route()
     self.signature = {}
+    self.errors_measured = []
+    self.errors_filtered = []
 
   def addTrip(self,dep_location,arr_location,sampling_period_in_sec=1.0,
       secondsSinceLastTrip=0.0,noiseSigma=.005):
     lastTimestamp = secondsSinceLastTrip
-    lastTimestamp += 0 if len(self.timedLocations_uniformlySampled)==0 else \
-      self.timedLocations_uniformlySampled[-1].timestamp
+    lastTimestamp += 0 if len(self.route_uniformlySampled.timedLocations)==0 else \
+      self.route_uniformlySampled.timedLocations[-1].timestamp
 
     # get exact route with time origin larger than last timestamp
     rq = RQ.RouteQuery()
@@ -27,36 +29,46 @@ class User:
     # sample only a subset of this new route as actual location
     sroute = newRoute.randomSample(minPercentile=1.0,maxPercentile=10.0)
 
-    self.timedLocations_uniformlySampled.extend(newRoute.timedLocations)
-    self.timedLocations_actual.extend(copy.deepcopy(sroute.timedLocations))
+    self.route_uniformlySampled.timedLocations.extend(newRoute.timedLocations)
+    self.route_actual.timedLocations.extend(copy.deepcopy(sroute.timedLocations))
     sroute.addNoise(noiseSigma)
-    self.timedLocations_measured.extend(sroute.timedLocations)
+    self.route_measured.timedLocations.extend(sroute.timedLocations)
+    self.errors_measured = self.computeErrors('measured')
 
     # TODO: change this to actual filtered signal
-    self.timedLocations_filtered.extend(sroute.timedLocations)
+    self.route_filtered.timedLocations.extend(sroute.timedLocations)
+    self.errors_filtered = self.computeErrors('filtered')
     return
 
   def toLonLatTimeArrays(self,signal='uniformlySampled'):
-    a = self.timedLocations_uniformlySampled
+    a = self.route_uniformlySampled.timedLocations
     if signal=='measured':
-      a = self.timedLocations_measured
+      a = self.route_measured.timedLocations
     elif signal=='actual':
-      a = self.timedLocations_actual
+      a = self.route_actual.timedLocations
     elif signal=='filtered':
-      a = self.timedLocations_filtered
+      a = self.route_filtered.timedLocations
 
     x = [tl.location.lon for tl in a]
     y = [tl.location.lat for tl in a]
     t = [tl.timestamp for tl in a]
     return x,y,t
 
-  def errorStatistics(self,numBins=10):
-    errors = [Location.distanceInMeters(
-                self.timedLocations_actual[i].location,
-                self.timedLocations_measured[i].location
-                )
-              for i in range(len(self.timedLocations_actual))]
+  def errorStatistics(self,signal,numBins=10):
+    errors = self.computeErrors(signal)
     return np.histogram(errors,bins=numBins)
+
+  def computeErrors(self,signal):
+    if signal=='measured':
+      a = self.route_measured.timedLocations
+    elif signal=='filtered':
+      a = self.route_filtered.timedLocations
+
+    return [Location.distanceInMeters(
+                self.route_actual.timedLocations[i].location,
+                a[i].location
+                )
+              for i in range(len(self.route_actual.timedLocations))]
 
 
   def render(self,ax,withUniform=True,withActual=True,withMeasured=True,
@@ -86,3 +98,10 @@ class User:
       x4,y4,t4 = self.toLonLatTimeArrays('filtered')
       kwargs['s'] = [20]*len(x4)
       ax.scatter(x4, y4, c='g',**kwargs)
+
+  def bilateralFilter(self,maxDistance=5,heatThreshold=.01):
+    hm = self.route_measured.toHeatmap()
+    hm.bilateral_sharpen(maxDistance)
+    self.route_filtered.timedLocations = self.route_measured.filterFromHeatmap(hm,
+        maxDistance,heatThreshold)
+    self.errors_filtered = self.computeErrors('filtered')
