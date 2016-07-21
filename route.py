@@ -137,7 +137,7 @@ class Route:
       
     ax.scatter(x, y, **kwargs)
 
-  def toHeatmap(self,geohashlength=8,maxInterpolationTimeInterval=300,
+  def toHeatmap(self,geohashlength=7,maxInterpolationTimeInterval=300,
       maxInterpolationDistance=1000):
     # 1. first, we should aggregate static data in a meaningful manner... maybe?
     # the user signature is more reliable on more dynamic data
