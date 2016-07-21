@@ -51,9 +51,15 @@ class Heatmap:
           colorvalues.append(self.countPerGeohash[d] \
             if self.countPerGeohash[d]<3 else self.countPerGeohash[d]+10)
       except KeyError:
-        print "'"+d +"' is not a valid geohash."
+        print("'"+d +"' is not a valid geohash.")
 
-    print max(values)
+    try:
+      maxval = max(values)
+      minval = min(values)
+    except ValueError:
+      print('heatmap appears to be empty...')
+      maxval = 1
+      minval = 0
 
     p = PatchCollection(patches,cmap=plt.get_cmap('BlueRed'),alpha=alpha)
   #   if usePyLeaflet:
@@ -65,13 +71,13 @@ class Heatmap:
   #   else:
   #     p.set_edgecolors(np.array(['white' for x in values]))
     p.set_array(np.array(colorvalues))
-    p.set_norm(colors.LogNorm(vmin=1, vmax=max(values)+1))
+    p.set_norm(colors.LogNorm(vmin=1, vmax=maxval+1))
     ax.add_collection(p)
     ax.set_xlim(self.bbox['w'], self.bbox['e'])
     ax.set_ylim(self.bbox['s'], self.bbox['n'])
     divider = make_axes_locatable(ax)
     cbar = plt.colorbar(p)
-    cbar.set_clim(vmin=max(1,min(values)),vmax=max(values)+1)
+    cbar.set_clim(vmin=max(1,minval),vmax=maxval+1)
     cbar.update_normal(p)
     return
 

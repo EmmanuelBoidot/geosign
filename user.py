@@ -15,13 +15,16 @@ class User:
     self.errors_filtered = []
 
   def addTrip(self,dep_location,arr_location,sampling_period_in_sec=1.0,
-      secondsSinceLastTrip=0.0,noiseSigma=.005):
+      secondsSinceLastTrip=0.0,noiseSigma=.005,API='OSRM'):
     lastTimestamp = secondsSinceLastTrip
     lastTimestamp += 0 if len(self.route_uniformlySampled.timedLocations)==0 else \
       self.route_uniformlySampled.timedLocations[-1].timestamp
 
     # get exact route with time origin larger than last timestamp
-    rq = RQ.RouteQuery()
+    if API=='Google':
+      rq = RQ.GoogleRouteQuery()
+    else:
+      rq = RQ.OSRMRouteQuery()
     newRoute = rq.getUniformlySampledRoute(dep_location,
       arr_location,lastTimestamp,sampling_period_in_sec)
 

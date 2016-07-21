@@ -8,28 +8,8 @@ class Route:
   # !!! Highly dependent on the datastructure retuned by OSRM server
   #
   ###
-  def __init__(self, steps=[],firstTimestamp=0.0):
-    self.timedLocations = []
-
-    if len(steps)==0:
-      return
-
-    prevTimestamp = firstTimestamp
-    tl = TimedLocation(
-            steps[0]['geometry']['coordinates'][0][1],
-            steps[0]['geometry']['coordinates'][0][0],
-            prevTimestamp
-          )
-    self.timedLocations.append(tl)
-
-    for s in steps: # should be using 'geometry' instead
-      timedLocs = TimedLocation.makeTimedLocationFromCoordinatesAndTotalDuration(
-                    s['geometry']['coordinates'],
-                    s['duration'],
-                    prevTimestamp
-                  )
-      self.timedLocations.extend(timedLocs)
-      prevTimestamp += s['duration']
+  def __init__(self, timedLocations=[]):
+    self.timedLocations = timedLocations
 
   def __str__(self):
     return self.toString()
@@ -151,6 +131,9 @@ class Route:
             'minlon': 180.,
             'maxlon': -180.
             }
+    if len(self.timedLocations)==0:
+      return Heatmap(hmap)
+
     prevTimedLoc = self.timedLocations[0]
     hmap[prevTimedLoc.toGeohash(geohashlength)] = 1
     for k in range(1,len(self.timedLocations)):
@@ -227,8 +210,8 @@ class Route:
 
 class UniformlySampledRoute(Route):
 
-  def __init__(self, steps=[],firstTimestamp=0.0,sampling_period_in_sec=1.0):
-    Route.__init__(self,steps,firstTimestamp=firstTimestamp)
+  def __init__(self, timedLocations=[],sampling_period_in_sec=1.0):
+    Route.__init__(self,timedLocations)
     self.timedLocations = \
       self.makeUniformlySampledRoute(sampling_period_in_sec).timedLocations
     self.sampling_period_in_sec = sampling_period_in_sec
@@ -260,9 +243,13 @@ class TimedLocation:
 
   @staticmethod
   def makeTimedLocationFromCoordinatesAndTotalDuration(lonlats,totalDuration,
-      prevTimestamp=0.0):
+      prevTimestamp=0.0,latitudeFirst=False):
 
-    timedLocs = [TimedLocation(ss[1], ss[0], prevTimestamp) for ss in lonlats]
+    if latitudeFirst:
+      timedLocs = [TimedLocation(ss[0], ss[1], prevTimestamp) for ss in lonlats]
+    else:
+      timedLocs = [TimedLocation(ss[1], ss[0], prevTimestamp) for ss in lonlats]
+
     distances = [0.0]*len(lonlats)
     # for each intermediary point on the segment, compute the timestamp associated 
     # by doing a distance ratio. Assumes constant speed on segment.

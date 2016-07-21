@@ -8,12 +8,14 @@ from user import *
 import random
 random.seed()
 
+mAPI = 'Google'
+rq = routeQuery.GoogleRouteQuery() if mAPI=='Google' else routeQuery.OSRMRouteQuery()
+
 loc1 = Location(40.536656, -74.489883)
 loc2 = Location(40.433534, -74.222451)
 
 print loc1.toGeohash(7)
 
-rq = routeQuery.RouteQuery()
 route = rq.getRoute(loc1,loc2,1200.)
 # print route
 
@@ -28,8 +30,9 @@ rroute = Route()
 #   mroute.addNoise(noiseSigma=0.001)
 #   rroute.timedLocations.extend(mroute.timedLocations)
 
-# hmap = rroute.toHeatmap(7)
-# ru.renderElement(hmap)
+hmap = mroute.toHeatmap(7)
+ru.renderElement(hmap)
+plt.show()
 
 # print rroute
 x,y,t = rroute.toLonLatTimeArrays()
@@ -37,11 +40,10 @@ x,y,t = rroute.toLonLatTimeArrays()
 
 # print Location.distanceInMeters(loc1,loc2)
 
-
 muser = User()
 for i in range(30):
-  muser.addTrip(loc1,loc2,secondsSinceLastTrip=11*3600.0,noiseSigma=.004)
-  muser.addTrip(loc2,loc1,secondsSinceLastTrip=8*3600.0,noiseSigma=.004)
+  muser.addTrip(loc1,loc2, secondsSinceLastTrip=11*3600.0, noiseSigma=.004, API=mAPI)
+  muser.addTrip(loc2,loc1, secondsSinceLastTrip=8*3600.0, noiseSigma=.004, API=mAPI)
 
 print muser.errorStatistics('filtered')
 
