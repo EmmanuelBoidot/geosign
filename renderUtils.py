@@ -58,7 +58,6 @@ def renderUser(user,save_to_file=None, ip='localhost', usePyLeaflet=False,
   start_time = (datetime.datetime(2016,01,01,8,0) 
                   - datetime.datetime(1970,1,1)).total_seconds()
   times = [datetime.datetime.fromtimestamp(t+start_time, est_tz) for t in times]
-  error = user.errors_measured
 
   kwargs['marker'] = 'o' if not kwargs.has_key('marker') else kwargs['marker']
   kwargs['alpha'] = .6 if not kwargs.has_key('alpha') else kwargs['alpha']

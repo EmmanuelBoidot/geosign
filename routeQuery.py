@@ -1,3 +1,6 @@
+import os
+import json
+
 import requests
 from datetime import datetime
 
@@ -44,20 +47,28 @@ continue_straight=%s&alternatives=%s"""%(
     route = self.getRoute(depLocation,arrLocation,firstTimestamp)
     return UniformlySampledRoute(route.timedLocations,sampling_period_in_sec)
 
-  def getSteps(self,depLocation,arrLocation,travelMode='driving'):
-    json = self.getJSON(depLocation,arrLocation,travelMode)
+  def getSteps(self,depLocation,arrLocation):
+    json = self.getJSON(depLocation,arrLocation)
     steps = json['routes'][0]['legs'][0]['steps']
     return steps
 
-  def getJSON(self,depLocation,arrLocation,travelMode='driving'):
-    query = self.buildQuery(depLocation,arrLocation)
-    try:
-      json = requests.get(query).json()
-    except ValueError:
-      print query
-      print "No JSON returned by server..."
-      json = {'routes':[{'legs':[{'steps':[]}]}]}
-    return json
+  def getJSON(self,depLocation,arrLocation):
+    fname = depLocation.toGeohash(9)+'_'+arrLocation.toGeohash(9)
+    mpath = os.path.join(os.path.dirname(os.path.realpath(__file__)),'cache','osrm',fname)
+    if os.path.exists(mpath):
+      print("Route exists in cache. Loading from cache...")
+      jsons = json.loads(open(mpath).read())
+    else:
+      query = self.buildQuery(depLocation,arrLocation)
+      try:
+        jsons = requests.get(query).json()
+        json.dump(jsons,open(mpath,'w'))
+      except ValueError:
+        print query
+        print "No JSON returned by server..."
+        jsons = {'routes':[{'legs':[{'steps':[]}]}]}
+
+    return jsons
 
   def buildQuery(self,depLocation,arrLocation):
     return "%s%s;%s%s"%(
@@ -121,11 +132,20 @@ class GoogleRouteQuery:
     return steps
 
   def getJSON(self,depLocation,arrLocation,travelMode='driving'):
-    return self.gmaps.directions(
+    fname = depLocation.toGeohash(9)+'_'+arrLocation.toGeohash(9)
+    mpath = os.path.join(os.path.dirname(os.path.realpath(__file__)),'cache','google',fname)
+    if os.path.exists(mpath):
+      print("Route exists in cache. Loading from cache...")
+      jsons = json.loads(open(mpath).read())
+    else:
+      jsons =  self.gmaps.directions(
                           depLocation.toLatLonString(),
                           arrLocation.toLatLonString(),
                           mode=travelMode
                         )
+      json.dump(jsons,open(mpath,'w'))
+
+    return jsons
 
   def getRoute(self,depLocation,arrLocation,firstTimestamp=0.0,travelMode='driving'):
     steps = self.getSteps(depLocation,arrLocation,travelMode)
