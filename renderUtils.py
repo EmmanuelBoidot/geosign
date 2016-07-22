@@ -20,7 +20,7 @@ plt.register_cmap(cmap=colors.LinearSegmentedColormap('BlueRed', cdict))
 def renderElement(route, save_to_file=None, ip='localhost', usePyLeaflet=False,
     **kwargs):
   # x,y,t = route.toLonLatTimeArrays()
-  fig, ax1 = plt.subplots(figsize=(15, 18),nrows=1,ncols=1)
+  fig, ax1 = plt.subplots(figsize=(12, 9),nrows=1,ncols=1)
   
   # kwargs['marker'] = 'o' if not kwargs.has_key('marker') else kwargs['marker']
   # kwargs['s'] = [10]*len(x) if not kwargs.has_key('s') else kwargs['s']

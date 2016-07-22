@@ -109,7 +109,7 @@ class Route:
   def render(self,ax,**kwargs):
     x,y,t = self.toLonLatTimeArrays()
 
-    kwargs['marker'] = 'o' if not kwargs.has_key('marker') else kwargs['marker']
+    kwargs['marker'] = '^' if not kwargs.has_key('marker') else kwargs['marker']
     kwargs['s'] = [10]*len(x) if not kwargs.has_key('s') else kwargs['s']
     # kwargs['cmap'] = \
     #     plt.get_cmap('winter') if not kwargs.has_key('cmap') else kwargs['cmap']
