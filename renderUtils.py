@@ -104,9 +104,9 @@ def renderUser(user,save_to_file=None, ip='localhost', usePyLeaflet=False,
     ax3.set_xlabel('time')
     ax3.set_ylabel('lon')
 
-    ax4.fmt_xdata = mdates.DateFormatter('%Y-%m-%d %H',est_tz)
-    ax4.plot(times, user.errors_measured,color='red',linewidth=2)
-    ax4.plot(times, user.errors_filtered,color='green',linewidth=2,linestyle='-.')
+    # ax4.fmt_xdata = mdates.DateFormatter('%Y-%m-%d %H',est_tz)
+    # ax4.plot(times, user.errors_measured,color='red',linewidth=2)
+    # ax4.plot(times, user.errors_filtered,color='green',linewidth=2,linestyle='-.')
     ax4.set_xlabel('time')
     ax4.set_ylabel('error')
 

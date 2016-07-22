@@ -22,14 +22,20 @@ class Heatmap:
                  's':countPerGeohash['minlat'],
                  'w':countPerGeohash['minlon']
                 }
-    self.maxvalue = countPerGeohash['maxvalue']
+    self.maxvalue = max(countPerGeohash['maxvalue'],1.0)
     self.geohashlength = countPerGeohash['geohashlength']
 
     self.removeGeohashes(['minlon','minlat','maxlon','maxlat','maxvalue',
         'geohashlength'])
 
+  def normalize(self):
+    for k in self.countPerGeohash.keys():
+      self.countPerGeohash[k] *= 1.0/self.maxvalue
+    self.maxvalue = 1.0
 
-  def render(self,ax,alpha=.7,usePyLeaflet=False,minValueThreshold=-float('Inf')):
+
+  def render(self,ax,alpha=.7,usePyLeaflet=False,
+      minValueThreshold=-float('Inf'),logScale=True):
     if not usePyLeaflet:
       alpha=1.0
 
@@ -46,10 +52,12 @@ class Heatmap:
                         bbox['n'] - bbox['s'],
                         ec='none', lw=.1, fc='red', alpha=alpha)
           patches.append(rect)
-          values.append(self.countPerGeohash[d] \
-            if self.countPerGeohash[d]<3 else self.countPerGeohash[d]+10)
-          colorvalues.append(self.countPerGeohash[d] \
-            if self.countPerGeohash[d]<3 else self.countPerGeohash[d]+10)
+          # values.append(self.countPerGeohash[d] \
+          #   if self.countPerGeohash[d]<3 else self.countPerGeohash[d]+10)
+          # colorvalues.append(self.countPerGeohash[d] \
+          #   if self.countPerGeohash[d]<3 else self.countPerGeohash[d]+10)
+          values.append(self.countPerGeohash[d])
+          colorvalues.append(self.countPerGeohash[d])
       except KeyError:
         print("'"+d +"' is not a valid geohash.")
 
@@ -71,13 +79,16 @@ class Heatmap:
   #   else:
   #     p.set_edgecolors(np.array(['white' for x in values]))
     p.set_array(np.array(colorvalues))
-    p.set_norm(colors.LogNorm(vmin=1, vmax=maxval+1))
+    if logScale:
+      p.set_norm(colors.LogNorm(vmin=.01, vmax=maxval+1))
+    else:
+      p.set_norm(colors.Normalize(vmin=0, vmax=maxval))
     ax.add_collection(p)
     ax.set_xlim(self.bbox['w'], self.bbox['e'])
     ax.set_ylim(self.bbox['s'], self.bbox['n'])
     divider = make_axes_locatable(ax)
     cbar = plt.colorbar(p)
-    cbar.set_clim(vmin=max(1,minval),vmax=maxval+1)
+    cbar.set_clim(vmin=max(0,minval),vmax=maxval)
     cbar.update_normal(p)
     return
 

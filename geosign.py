@@ -11,8 +11,8 @@ random.seed()
 mAPI = 'Google'
 rq = routeQuery.GoogleRouteQuery() if mAPI=='Google' else routeQuery.OSRMRouteQuery()
 
-loc1 = Location(40.536656, -74.489883)
-loc2 = Location(40.433534, -74.222451)
+loc1 = Location(40.536656,-74.489883)
+loc2 = Location(40.433534,-74.222451)
 
 print loc1.toGeohash(7)
 
@@ -31,8 +31,8 @@ rroute = Route()
 #   rroute.timedLocations.extend(mroute.timedLocations)
 
 hmap = mroute.toHeatmap(7)
-ru.renderElement(hmap)
-plt.show()
+# ru.renderElement(hmap)
+# plt.show()
 
 # print rroute
 x,y,t = rroute.toLonLatTimeArrays()
@@ -40,22 +40,35 @@ x,y,t = rroute.toLonLatTimeArrays()
 
 # print Location.distanceInMeters(loc1,loc2)
 
+args = {'sampling_period_in_sec':1.0,
+'secondsSinceLastTrip':11*3600.0,'noiseSigma':.004,
+'minPercentile':.001,'maxPercentile':.05,'API':mAPI}
+
 muser = User()
 for i in range(30):
-  muser.addTrip(loc1,loc2, secondsSinceLastTrip=11*3600.0, noiseSigma=.004, API=mAPI)
-  muser.addTrip(loc2,loc1, secondsSinceLastTrip=8*3600.0, noiseSigma=.004, API=mAPI)
+  print('Day %d:'%(i))
+  muser.addTrip(loc1,loc2, **args)
+  muser.addTrip(loc2,loc1, **args)
 
-print muser.errorStatistics('filtered')
+print muser.getErrorStatistics('measured')
+print muser.getErrorStatistics('filtered')
 
-hm = muser.route_measured.toHeatmap()
+hm = muser.routes['measured'].toHeatmap()
+
 ru.renderElement(hm,usePyLeaflet=False)
-hm.bilateral_sharpen(2)
-ru.renderElement(hm,usePyLeaflet=False)
+hm.normalize()
+ru.renderElement(hm,usePyLeaflet=False,logScale=False)
+hm.bilateral_sharpen(maxdist=5)
+ru.renderElement(hm,usePyLeaflet=False,logScale=False)
+
 plt.show()
 
 # muser.bilateralFilter()
 
-ru.renderUser(muser,usePyLeaflet=True)
+# ru.renderUser(muser,usePyLeaflet=True)
+
+import pyLeaflet
+ru.renderElement(muser.routes['measured'],usePyLeaflet=True,alpha=.8)
 
 # # ru.renderElement(rroute,alpha=.05)
 # ru.renderElement(muser,

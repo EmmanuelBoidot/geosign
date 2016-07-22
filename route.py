@@ -57,6 +57,9 @@ class Route:
 
     return mroute
 
+  def extend(self,other):
+    self.timedLocations.extend(other.timedLocations)
+
   def toLonLatArrays(self):
     X = [tl.location.lon for tl in self.timedLocations]
     Y = [tl.location.lat for tl in self.timedLocations]
@@ -86,15 +89,15 @@ class Route:
           return false
     return True
 
-  def randomSample(self,minPercentile=1.0,maxPercentile=20.0):
+  def randomSample(self,minPercentile=.01,maxPercentile=.2):
     numPoints = len(self.timedLocations)
     mroute = Route()
     if numPoints==0:
       return mroute
     
     # takes between minPercentile % and maxPercentile % of all points
-    numPointsToSample = random.randrange(int(numPoints*minPercentile/100),
-                                        int(numPoints*maxPercentile/100))
+    numPointsToSample = random.randrange(int(numPoints*minPercentile),
+                max(int(numPoints*minPercentile)+1,int(numPoints*maxPercentile)))
     pointIndices = geomUtils.selectKItems(numPoints,numPointsToSample)
     mroute.timedLocations = [self.timedLocations[i] for i in pointIndices]
     return mroute
@@ -111,14 +114,14 @@ class Route:
     # kwargs['cmap'] = \
     #     plt.get_cmap('winter') if not kwargs.has_key('cmap') else kwargs['cmap']
     kwargs['c'] = 'b' if not kwargs.has_key('c') else kwargs['c']
-    kwargs['alpha'] = .01 if not kwargs.has_key('alpha') else kwargs['alpha']
+    kwargs['alpha'] = .7 if not kwargs.has_key('alpha') else kwargs['alpha']
     kwargs['linewidths'] = \
         0 if not kwargs.has_key('linewidths') else kwargs['linewidths']
       
     ax.scatter(x, y, **kwargs)
 
-  def toHeatmap(self,geohashlength=7,maxInterpolationTimeInterval=300,
-      maxInterpolationDistance=1000):
+  def toHeatmap(self, geohashlength=7, maxInterpolationTimeInterval=300,
+      maxInterpolationDistance=1000, numIntermediatePoints=10):
     # 1. first, we should aggregate static data in a meaningful manner... maybe?
     # the user signature is more reliable on more dynamic data
 
@@ -144,20 +147,19 @@ class Route:
           hmap[h]+=1
           hmap['maxvalue'] = max(hmap['maxvalue'],hmap[h])
         else:
-            hmap[h]=1
+          hmap[h]=1.0
       else:
-        N=10
         i=0
-        while (i<N):
+        while (i<numIntermediatePoints):
           prevTimedLoc = self.timedLocations[k-1].intermediatePointTo(
-              self.timedLocations[k],(1.0*i)/N)
+              self.timedLocations[k],(1.0*i)/numIntermediatePoints)
 
           h = prevTimedLoc.toGeohash(geohashlength)
           if h in hmap:
-              hmap[h]+=1
-              hmap['maxvalue'] = max(hmap['maxvalue'],hmap[h])
+            hmap[h]+=1
+            hmap['maxvalue'] = max(hmap['maxvalue'],hmap[h])
           else:
-              hmap[h]=1
+            hmap[h]=1
           i+=1
 
       hmap['minlon'] = min(hmap['minlon'], self.timedLocations[k].location.lon)
@@ -206,6 +208,10 @@ class Route:
         ndata[l].location.lon= lon/len(nonZeroNeighbors)
 
     return ndata
+
+  def arrayDistanceInMeters(self,other):
+    return TimedLocation.arrayDistanceInMeters(self.timedLocations,
+        other.timedLocations)
 
 
 class UniformlySampledRoute(Route):
@@ -271,6 +277,13 @@ class TimedLocation:
   @staticmethod
   def distanceInMeters(location1,location2):
     return location1.distanceInMetersTo(location2)
+
+  @staticmethod
+  def arrayDistanceInMeters(a,b):
+    if len(a)!=len(b):
+      return []
+    return [Location.distanceInMeters(b[i].location, a[i].location)
+              for i in range(len(b))]
       
 
 import geopy.distance
