@@ -1,4 +1,5 @@
 import copy
+import sys
 
 from heatmap import *
 
@@ -128,6 +129,7 @@ class Route:
     # 2. populate timeserie with intermediary geohashes
     # then get heatmap
     hmap = {'maxvalue':0,
+            'minvalue':sys.maxint,
             'geohashlength':geohashlength,
             'minlat': 180.,
             'maxlat': -180.,
@@ -146,6 +148,7 @@ class Route:
         if h in hmap:
           hmap[h]+=1
           hmap['maxvalue'] = max(hmap['maxvalue'],hmap[h])
+          hmap['minvalue'] = min(hmap['minvalue'],hmap[h])
         else:
           hmap[h]=1.0
       else:
@@ -158,6 +161,7 @@ class Route:
           if h in hmap:
             hmap[h]+=1
             hmap['maxvalue'] = max(hmap['maxvalue'],hmap[h])
+            hmap['minvalue'] = min(hmap['minvalue'],hmap[h])
           else:
             hmap[h]=1
           i+=1

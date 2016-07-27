@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 from scipy.spatial import Delaunay
 import math
@@ -13,6 +15,20 @@ import geohash
 import geomUtils as gu
 from route import *
 
+cdict2 = {'red':   ((0.0, 0.0, 0.0),
+           (1.0, 1.0, 1.0)),
+
+     'green': ((0.0, 0.0, 0.0),
+           (1.0, 0.0, 0.0)),
+
+     'blue':  ((0.0, 1.0, 1.0),
+           (1.0, 0.0, 0.0)),
+
+     'alpha': ((0.0, 0.0, 0.0),
+           (1.0, 1.0, 1.0))}
+
+plt.register_cmap(cmap=colors.LinearSegmentedColormap('nothingRed', cdict2))
+
 class Heatmap:
 
   def __init__(self,countPerGeohash):
@@ -23,20 +39,24 @@ class Heatmap:
                  'w':countPerGeohash['minlon']
                 }
     self.maxvalue = max(countPerGeohash['maxvalue'],1.0)
+    self.minvalue = min(countPerGeohash['minvalue'],0.0)
     self.geohashlength = countPerGeohash['geohashlength']
 
     self.removeGeohashes(['minlon','minlat','maxlon','maxlat','maxvalue',
-        'geohashlength'])
+        'minvalue','geohashlength'])
 
   def normalize(self):
     for k in self.countPerGeohash.keys():
-      self.countPerGeohash[k] *= 1.0/self.maxvalue
+      self.countPerGeohash[k] = self.countPerGeohash[k]-self.minvalue
+      self.countPerGeohash[k] /= (self.maxvalue-self.minvalue)
+      self.countPerGeohash[k] = 1.0
     self.maxvalue = 1.0
+    self.minvalue = 0.0
 
 
   def render(self,ax,alpha=.7,usePyLeaflet=False,
-      minValueThreshold=-float('Inf'),logScale=True):
-    if not usePyLeaflet:
+      minValueThreshold=-float('Inf'),logScale=True,colormapname='BlueRed'):
+    if not usePyLeaflet or colormapname=='nothingRed':
       alpha=1.0
 
     patches = []
@@ -69,7 +89,7 @@ class Heatmap:
       maxval = 1
       minval = 0
 
-    p = PatchCollection(patches,cmap=plt.get_cmap('BlueRed'),alpha=alpha)
+    p = PatchCollection(patches,cmap=plt.get_cmap(colormapname),alpha=alpha)
   #   if usePyLeaflet:
     if (len(values)<100):
       p.set_edgecolors(np.array(['black' for x in values]))
@@ -80,7 +100,7 @@ class Heatmap:
   #     p.set_edgecolors(np.array(['white' for x in values]))
     p.set_array(np.array(colorvalues))
     if logScale:
-      p.set_norm(colors.LogNorm(vmin=.01, vmax=maxval+1))
+      p.set_norm(colors.LogNorm(vmin=.01, vmax=maxval))
     else:
       p.set_norm(colors.Normalize(vmin=0, vmax=maxval))
     ax.add_collection(p)
@@ -115,13 +135,13 @@ class Heatmap:
             validKeys[t[i]],validKeys[t[(i+1)%3]]))
     return graph
 
-  def computeBilateralFilteredCountsPerGeohash(self,maxdist=2,sigma=None):
+  def computeBilateralFilteredHeatmap(self,maxdist=2,sigma=None):
     if sigma is None:
       sigma=maxdist*5.0/9
 
-    mtotal = 1.0
     weights = np.zeros(maxdist+1)
     weights[0] = 1.0
+    mtotal = weights[0]
     for d in range(1,maxdist+1):
       weights[d] = math.exp(-d*d/(2*sigma*sigma))
       mtotal += 8*d*weights[d]
@@ -129,38 +149,56 @@ class Heatmap:
   #   print mtotal,weights
 
     kk = self.countPerGeohash.keys()
-    nhmap = dict(zip(kk, [0.0 for x in kk]))
+    nhmap = copy.deepcopy(self)
     maxi = self.maxvalue
+    # print maxi
     for k in kk:
-      nhmap[k] += self.countPerGeohash[k]*1.0/maxi/mtotal
+      nhmap.countPerGeohash[k] = self.countPerGeohash[k]*1.0/maxi/mtotal
       nn = gu.geohashNeighbors(k,dist=maxdist)
       for n in nn.keys():
         try:
-          nhmap[k] += self.countPerGeohash[n]*1.0/weights[nn[n]]/mtotal/maxi
+          nhmap.countPerGeohash[n] += self.countPerGeohash[k]*1.0*weights[nn[n]]/mtotal/maxi
         except:
           # do nothing
-          nhmap[k] += 0.0
+          nhmap.countPerGeohash[n] = self.countPerGeohash[k]*1.0*weights[nn[n]]/mtotal/maxi
+
+    nhmap.minvalue = sys.maxint
+    nhmap.maxvalue = -sys.maxint
+    for k in kk:
+      nhmap.minvalue = min(nhmap.minvalue,nhmap.countPerGeohash[k])
+      nhmap.maxvalue = max(nhmap.maxvalue,nhmap.countPerGeohash[k])
 
     return nhmap
 
+
   def bilateral_sharpen(self,maxdist=2):
-    nhmap = self.computeBilateralFilteredCountsPerGeohash(maxdist=2*maxdist)
-    mini = 0
+    nhmap = self.computeBilateralFilteredHeatmap(maxdist=2*maxdist)
     maxi = self.maxvalue
   #   maxi2 = nhmap['maxvalue']
 
   #   print maxi,maxi2
 
-    for k in nhmap.keys():
+    for k in nhmap.countPerGeohash.keys():
       try:
-        nhmap[k] = (1.5*hmap[k]/maxi-0.5*nhmap[k])*maxi
+        nhmap.countPerGeohash[k] = 1.5*self.countPerGeohash[k]/maxi\
+          -0.5*nhmap.countPerGeohash[k]
       except:
-        nhmap[k] = 0#-0.5*nhmap[k]
-  #     mini = min(mini,nhmap[k])
+        nhmap.countPerGeohash[k] = -0.5*nhmap.countPerGeohash[k]
+      nhmap.minvalue = min(nhmap.minvalue,nhmap.countPerGeohash[k])
+      nhmap.maxvalue = max(nhmap.maxvalue,nhmap.countPerGeohash[k])
 
-  #   for k in nhmap.keys():
-  #     nhmap[k] -= mini
+    for k in nhmap.countPerGeohash.keys():
+      # if nhmap.countPerGeohash[k]<=0:
+      #   del nhmap.countPerGeohash[k]
+      # else:
+      nhmap.countPerGeohash[k] -= nhmap.minvalue
 
-    self.maxvalue = 1
-    self.countPerGeohash = nhmap
-    return 
+    nhmap.maxvalue -= nhmap.minvalue
+    return nhmap
+
+  def filterOutExtrema(self,minValueThreshold=0.0,maxValueThreshold=1.0):
+    for k in self.countPerGeohash.keys():
+      if self.countPerGeohash[k] < minValueThreshold or \
+          self.countPerGeohash[k] > maxValueThreshold:
+        del self.countPerGeohash[k]
+    return

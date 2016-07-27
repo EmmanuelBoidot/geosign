@@ -15,7 +15,22 @@ cdict = {'red':   ((0.0, 0.0, 0.0),
 
      'blue':  ((0.0, 1.0, 1.0),
            (1.0, 0.0, 0.0))}
+
+cdict2 = {'red':   ((0.0, 0.0, 0.0),
+           (1.0, 1.0, 1.0)),
+
+     'green': ((0.0, 0.0, 0.0),
+           (1.0, 0.0, 0.0)),
+
+     'blue':  ((0.0, 1.0, 1.0),
+           (1.0, 0.0, 0.0)),
+     'alpha': ((0.0, 0.0, 0.0),
+           (1.0, 1.0, 1.0))}
+
+
 plt.register_cmap(cmap=colors.LinearSegmentedColormap('BlueRed', cdict))
+plt.register_cmap(cmap=colors.LinearSegmentedColormap('nothingRed', cdict2))
+
 
 def renderElement(route, save_to_file=None, ip='localhost', usePyLeaflet=False,
     **kwargs):

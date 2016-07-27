@@ -1,4 +1,6 @@
 #!python
+import copy
+
 import routeQuery
 from route import *
 import renderUtils as ru
@@ -45,7 +47,7 @@ args = {'sampling_period_in_sec':1.0,
 'minPercentile':.001,'maxPercentile':.05,'API':mAPI}
 
 muser = User()
-for i in range(30):
+for i in range(10):
   print('Day %d:'%(i))
   muser.addTrip(loc1,loc2, **args)
   muser.addTrip(loc2,loc1, **args)
@@ -54,21 +56,28 @@ print muser.getErrorStatistics('measured')
 print muser.getErrorStatistics('filtered')
 
 hm = muser.routes['measured'].toHeatmap()
+hm2 = copy.deepcopy(hm)
+hm2.normalize()
 
-ru.renderElement(hm,usePyLeaflet=False)
-hm.normalize()
-ru.renderElement(hm,usePyLeaflet=False,logScale=False)
-hm.bilateral_sharpen(maxdist=5)
-ru.renderElement(hm,usePyLeaflet=False,logScale=False)
+hm3 = hm2.computeBilateralFilteredHeatmap(maxdist=5)
 
+hm4 = hm2.bilateral_sharpen(maxdist=4)
+hm4.filterOutExtrema(0.5,10)
+
+# ru.renderElement(hm,usePyLeaflet=False)
+# ru.renderElement(hm2,usePyLeaflet=False,logScale=False)
+# ru.renderElement(hm3,usePyLeaflet=False,logScale=False)
+# ru.renderElement(hm4,usePyLeaflet=False,logScale=False,colormapname='nothingRed')
+
+
+ru.renderElement(hm3,usePyLeaflet=True,alpha=.6,logScale=False,colormapname='nothingRed')
 plt.show()
 
 # muser.bilateralFilter()
 
 # ru.renderUser(muser,usePyLeaflet=True)
 
-import pyLeaflet
-ru.renderElement(muser.routes['measured'],usePyLeaflet=True,alpha=.8)
+# ru.renderElement(muser.routes['measured'],usePyLeaflet=True,alpha=.8)
 
 # # ru.renderElement(rroute,alpha=.05)
 # ru.renderElement(muser,
