@@ -1,6 +1,7 @@
 import copy
 import sys
 
+import geomUtils as gu
 from heatmap import *
 
 class Route:
@@ -144,13 +145,17 @@ class Route:
     for k in range(1,len(self.timedLocations)):
       # if the two points are too far away distance-wise or timewise, don't interpolate
       if (self.timedLocations[k].timestamp-prevTimedLoc.timestamp)>maxInterpolationTimeInterval or Location.distanceInMeters(self.timedLocations[k],prevTimedLoc)>maxInterpolationDistance:
-        h = prevTimedLoc.toGeohash(geohashlength)
-        if h in hmap:
-          hmap[h]+=1
-          hmap['maxvalue'] = max(hmap['maxvalue'],hmap[h])
-          hmap['minvalue'] = min(hmap['minvalue'],hmap[h])
-        else:
-          hmap[h]=1.0
+        hashes = [prevTimedLoc.toGeohash(geohashlength)]
+        # TODO: instead of distance=2, should take estimated error into account
+        # and translate it into geohash distance
+        hashes.extend(gu.geohashNeighbors(hashes[0],2))
+        for h in hashes:
+          if h in hmap:
+            hmap[h]+=1
+            hmap['maxvalue'] = max(hmap['maxvalue'],hmap[h])
+            hmap['minvalue'] = min(hmap['minvalue'],hmap[h])
+          else:
+            hmap[h]=1.0
       else:
         i=0
         while (i<numIntermediatePoints):

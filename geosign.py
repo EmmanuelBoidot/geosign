@@ -64,14 +64,13 @@ hm3 = hm2.computeBilateralFilteredHeatmap(maxdist=5)
 hm4 = hm2.bilateral_sharpen(maxdist=4)
 hm4.filterOutExtrema(0.5,10)
 
-# ru.renderElement(hm,usePyLeaflet=False)
-# ru.renderElement(hm2,usePyLeaflet=False,logScale=False)
-# ru.renderElement(hm3,usePyLeaflet=False,logScale=False)
-# ru.renderElement(hm4,usePyLeaflet=False,logScale=False,colormapname='nothingRed')
-
-
-ru.renderElement(hm3,usePyLeaflet=True,alpha=.6,logScale=False,colormapname='nothingRed')
+ru.renderElement(hm,usePyLeaflet=False)
+ru.renderElement(hm2,usePyLeaflet=False,logScale=False)
+ru.renderElement(hm3,usePyLeaflet=False,logScale=False)
+ru.renderElement(hm4,usePyLeaflet=False,logScale=False,colormapname='nothingRed')
 plt.show()
+
+# ru.renderElement(hm3,usePyLeaflet=True,alpha=.6,logScale=False,colormapname='nothingRed')
 
 # muser.bilateralFilter()
 
