@@ -1,5 +1,6 @@
 #!python
 import copy
+from threading import Thread
 
 import routeQuery
 from route import *
@@ -55,31 +56,38 @@ for i in range(10):
 print muser.getErrorStatistics('measured')
 print muser.getErrorStatistics('filtered')
 
-hm = muser.routes['measured'].toHeatmap()
+hm = muser.routes['measured'].toHeatmap(geohashlength=8)
 hm2 = copy.deepcopy(hm)
 hm2.normalize()
 
-hm3 = hm2.computeBilateralFilteredHeatmap(maxdist=5)
+hm3 = hm2.computeBilateralFilteredHeatmap(maxdist=2)
 
-hm4 = hm2.bilateral_sharpen(maxdist=4)
-hm4.filterOutExtrema(0.5,10)
+hm4 = hm2.bilateral_sharpen(maxdist=2)
+hm4 = hm4.bilateral_sharpen(maxdist=2)
+hm4 = hm4.bilateral_sharpen(maxdist=2)
+hm4.filterOutExtrema(0.45,10)
 
-ru.renderElement(hm,usePyLeaflet=False)
-ru.renderElement(hm2,usePyLeaflet=False,logScale=False)
-ru.renderElement(hm3,usePyLeaflet=False,logScale=False)
-ru.renderElement(hm4,usePyLeaflet=False,logScale=False,colormapname='nothingRed')
-plt.show()
+# ru.renderElements([hm],usePyLeaflet=False)
+# ru.renderElements([hm2],usePyLeaflet=False,logScale=False)
+# ru.renderElements([hm3],usePyLeaflet=False,logScale=False)
+# ru.renderElements([hm4],usePyLeaflet=False,logScale=False,colormapname='nothingRed')
+# plt.show()
 
-# ru.renderElement(hm3,usePyLeaflet=True,alpha=.6,logScale=False,colormapname='nothingRed')
+# ru.renderElements([hm4,muser.routes['measured']],usePyLeaflet=True,alpha=.6)
+
+
+mgraph = hm4.toGraph()
+mtree = mgraph.kruskal()
+ru.renderElements([mtree,muser.routes['measured']],usePyLeaflet=True)
 
 # muser.bilateralFilter()
 
 # ru.renderUser(muser,usePyLeaflet=True)
 
-# ru.renderElement(muser.routes['measured'],usePyLeaflet=True,alpha=.8)
+# ru.renderElements([muser.routes['measured']],usePyLeaflet=True,alpha=.8)
 
-# # ru.renderElement(rroute,alpha=.05)
-# ru.renderElement(muser,
+# # ru.renderElements(rroute,alpha=.05)
+# ru.renderElements(muser,
 #   withUniform=False,
 #   withActual=False,
 #   withMeasured=False,

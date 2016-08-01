@@ -1,3 +1,5 @@
+from threading import Thread
+
 import datetime
 import pytz as tz
 
@@ -32,22 +34,12 @@ plt.register_cmap(cmap=colors.LinearSegmentedColormap('BlueRed', cdict))
 plt.register_cmap(cmap=colors.LinearSegmentedColormap('nothingRed', cdict2))
 
 
-def renderElement(route, save_to_file=None, ip='localhost', usePyLeaflet=False,
+def renderElements(elmts, save_to_file=None, ip='localhost', usePyLeaflet=False,
     **kwargs):
-  # x,y,t = route.toLonLatTimeArrays()
   fig, ax1 = plt.subplots(figsize=(12, 9),nrows=1,ncols=1)
   
-  # kwargs['marker'] = 'o' if not kwargs.has_key('marker') else kwargs['marker']
-  # kwargs['s'] = [10]*len(x) if not kwargs.has_key('s') else kwargs['s']
-  # # kwargs['cmap'] = \
-  # #   plt.get_cmap('winter') if not kwargs.has_key('cmap') else kwargs['cmap']
-  # kwargs['c'] = 'b' if not kwargs.has_key('c') else kwargs['c']
-  # kwargs['alpha'] = .01 if not kwargs.has_key('alpha') else kwargs['alpha']
-  # kwargs['linewidths'] = \
-  #   0 if not kwargs.has_key('linewidths') else kwargs['linewidths']
-    
-  # ax1.scatter(x, y, **kwargs)
-  route.render(ax1,**kwargs)
+  for e in elmts:
+    e.render(ax1,**kwargs)
 
   ax1.axis('equal')
   ax1.set_xlabel('longitude')
@@ -56,11 +48,11 @@ def renderElement(route, save_to_file=None, ip='localhost', usePyLeaflet=False,
   ###############
   ###############
   if usePyLeaflet or (save_to_file is not None):
-    # tile_layer = "http://{s}.tile.stamen.com/toner/{z}/{x}/{y}.jpg"
     tile_layer = "http://{s}.tile.stamen.com/terrain/{z}/{x}/{y}.jpg"
-    html = pyLeaflet.plotWithMap(fig,tile_layer = tile_layer)
-  # else:
-    # plt.show()
+    pyLeaflet.plotWithMap(fig,tile_layer)
+    # a = Thread(target=pyLeaflet.plotWithMap,args=(fig,tile_layer))
+    # a.start()
+    # a.join()
 
 
 def renderUser(user,save_to_file=None, ip='localhost', usePyLeaflet=False, 

@@ -1,7 +1,7 @@
 import random
 import geohash
 
-from route import *
+import route
 
 
 # A function to randomly select k items from stream[0..n-1].
@@ -26,7 +26,7 @@ def selectKItems(numPoints, numPointsToSample):
 def geohash_exactDistance(h1,h2):
     lat1,lon1 = geohash.decode(h1)
     lat2,lon2 = geohash.decode(h2)
-    return Location(lat1, lon1).distanceInMetersTo(Location(lat2, lon2))
+    return route.Location(lat1, lon1).distanceInMetersTo(route.Location(lat2, lon2))
 
 
 def geohashNeighbors(h,dist=2):

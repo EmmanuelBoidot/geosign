@@ -14,6 +14,7 @@ import geohash
 
 import geomUtils as gu
 from route import *
+from graph import *
 
 cdict2 = {'red':   ((0.0, 0.0, 0.0),
            (1.0, 1.0, 1.0)),
@@ -49,7 +50,7 @@ class Heatmap:
     for k in self.countPerGeohash.keys():
       self.countPerGeohash[k] = self.countPerGeohash[k]-self.minvalue
       self.countPerGeohash[k] /= (self.maxvalue-self.minvalue)
-      self.countPerGeohash[k] = 1.0
+      # self.countPerGeohash[k] = 1.0
     self.maxvalue = 1.0
     self.minvalue = 0.0
 
@@ -126,13 +127,21 @@ class Heatmap:
     tri = Delaunay(points)
   #   neighbors = dict(zip(validKeys, [[] for x in validKeys]))
     # print neighbors
-    graph = {'vertices':validKeys, 'edges':set([])}
+    graph = Graph(validKeys)
     for t in tri.simplices:
       for i in range(3):
-        graph['edges'].add(
-          (gu.geohash_exactDistance(validKeys[t[i]],validKeys[t[(i+1)%3]]),
+        mdist = gu.geohash_exactDistance(validKeys[t[i]],validKeys[t[(i+1)%3]])
+        try:
+          mweight = mdist/abs(self.countPerGeohash[validKeys[t[i]]]\
+                    -self.countPerGeohash[validKeys[t[(i+1)%3]]])
+        except:
+          mweight = mdist
+        
+        graph.addEdge(
+          (mdist,
             self.countPerGeohash[validKeys[t[i]]]+self.countPerGeohash[validKeys[t[(i+1)%3]]],
-            validKeys[t[i]],validKeys[t[(i+1)%3]]))
+            validKeys[t[i]],validKeys[t[(i+1)%3]])
+        )
     return graph
 
   def computeBilateralFilteredHeatmap(self,maxdist=2,sigma=None):
